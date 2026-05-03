@@ -1,4 +1,3 @@
-
 using DelimitedFiles
 using PyFormattedStrings
 using StatsBase
@@ -138,10 +137,10 @@ probability_main = [0.35, 0.35, 0.35, 0.2, 0.2, 0.2, 0.2, 0.15, 0.1, 0.05, -1]
 cost_data = [10, 10, 10, 20, 20, 20, 30, 30, 40, 50, 0]
 
 simulate_main = false
-goal_level = 8
+goal_level = 10
 
 attempt_magnitude = 10 # Does a total of roughly 10^n_magnitude attempts 
-n_threads = 1024 # Recommended to be a multiple of 32. Lower this value when you want lower n_magnitude
+n_threads = 1024 # Recommended to be a multiple of 32. Lower this value when you want lower n_magnitude. Maximum depends on GPU
 
 folder_results = "results"
 
@@ -181,13 +180,13 @@ for (i, reset_at_attempt) in enumerate(10:19)
         println("Reset when $(sub_folder) below level = ", reset_below_level)
 
         # Approximate number of resets to tune number of attempts
-        main_cuda, secondary_1_cuda, secondary_2_cuda, 
-        cost_cuda, reset_cuda = compute_hexa_reset(1024, probability_main, cost_data, 
-                                                   goal_level, reset_at_attempt, reset_below_level,
-                                                   n_threads, simulate_main);
+        main_gpu, secondary_1_gpu, secondary_2_gpu, 
+        cost_gpu, reset_gpu = compute_hexa_reset(1024, probability_main, cost_data, 
+                                                 goal_level, reset_at_attempt, reset_below_level,
+                                                 n_threads, simulate_main);
 
-        reset = Array(reset_cuda)
-        reset_mean = mean(reset)
+        reset_cpu = Array(reset_gpu)
+        reset_mean = mean(reset_cpu)
         magnitude = Int32(ceil(log2(10^(attempt_magnitude-round(log10(reset_mean))))))
 
         # Comment this for lower amount of trials
@@ -199,28 +198,28 @@ for (i, reset_at_attempt) in enumerate(10:19)
 
         println(f"\nNumber of trials : {2^magnitude:d}")
 
-        main_cuda, secondary_1_cuda, secondary_2_cuda, 
-        cost_cuda, reset_cuda = compute_hexa_reset(2^magnitude, probability_main, cost_data, 
-                                                   goal_level, reset_at_attempt, reset_below_level,
-                                                   n_threads, simulate_main);
+        main_gpu, secondary_1_gpu, secondary_2_gpu, 
+        cost_gpu, reset_gpu = compute_hexa_reset(2^magnitude, probability_main, cost_data, 
+                                                 goal_level, reset_at_attempt, reset_below_level,
+                                                 n_threads, simulate_main);
 
-        main = Array(main_cuda)
-        secondary_1 = Array(secondary_1_cuda)
-        secondary_2 = Array(secondary_2_cuda)
-        cost = Array(cost_cuda)
-        reset = Array(reset_cuda)
+        main_cpu = Array(main_gpu)
+        secondary_1_cpu = Array(secondary_1_gpu)
+        secondary_2_cpu = Array(secondary_2_gpu)
+        cost_cpu = Array(cost_gpu)
+        reset_cpu = Array(reset_gpu)
 
-        summary_cost_mean[i, reset_below_level+1] = ceil(mean(cost))
-        summary_cost_50[i, reset_below_level+1] = ceil(quantile(cost, .50, sorted=false, alpha=0, beta=1))
-        summary_cost_90[i, reset_below_level+1] = ceil(quantile(cost, .90, sorted=false, alpha=0, beta=1))
-        summary_cost_95[i, reset_below_level+1] = ceil(quantile(cost, .95, sorted=false, alpha=0, beta=1))
-        summary_cost_99[i, reset_below_level+1] = ceil(quantile(cost, .99, sorted=false, alpha=0, beta=1))
+        summary_cost_mean[i, reset_below_level+1] = ceil(mean(cost_cpu))
+        summary_cost_50[i, reset_below_level+1] = ceil(quantile(cost_cpu, .50, sorted=false, alpha=0, beta=1))
+        summary_cost_90[i, reset_below_level+1] = ceil(quantile(cost_cpu, .90, sorted=false, alpha=0, beta=1))
+        summary_cost_95[i, reset_below_level+1] = ceil(quantile(cost_cpu, .95, sorted=false, alpha=0, beta=1))
+        summary_cost_99[i, reset_below_level+1] = ceil(quantile(cost_cpu, .99, sorted=false, alpha=0, beta=1))
 
-        summary_reset_mean[i, reset_below_level+1] = ceil(mean(reset))
-        summary_reset_50[i, reset_below_level+1] = ceil(quantile(reset, .50, sorted=false, alpha=0, beta=1))
-        summary_reset_90[i, reset_below_level+1] = ceil(quantile(reset, .90, sorted=false, alpha=0, beta=1))
-        summary_reset_95[i, reset_below_level+1] = ceil(quantile(reset, .95, sorted=false, alpha=0, beta=1))
-        summary_reset_99[i, reset_below_level+1] = ceil(quantile(reset, .99, sorted=false, alpha=0, beta=1))
+        summary_reset_mean[i, reset_below_level+1] = ceil(mean(reset_cpu))
+        summary_reset_50[i, reset_below_level+1] = ceil(quantile(reset_cpu, .50, sorted=false, alpha=0, beta=1))
+        summary_reset_90[i, reset_below_level+1] = ceil(quantile(reset_cpu, .90, sorted=false, alpha=0, beta=1))
+        summary_reset_95[i, reset_below_level+1] = ceil(quantile(reset_cpu, .95, sorted=false, alpha=0, beta=1))
+        summary_reset_99[i, reset_below_level+1] = ceil(quantile(reset_cpu, .99, sorted=false, alpha=0, beta=1))
 
         println(f"\ncost mean  : {summary_cost_mean[i, reset_below_level+1]:d}")
         println(f"cost q=50% : {summary_cost_50[i, reset_below_level+1]:d}")
