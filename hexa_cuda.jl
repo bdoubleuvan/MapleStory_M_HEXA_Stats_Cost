@@ -87,7 +87,7 @@ function hexa_reset_secondary_kernel(main, secondary_1, secondary_2, cost, reset
     i = (blockIdx().x-1i32) * blockDim().x + threadIdx().x
     attempt = 0i32
     
-    while (main[i] < 8) && (secondary_1[i] < goal_level) && (secondary_2[i] < goal_level)
+    while (secondary_1[i] < goal_level) && (secondary_2[i] < goal_level) # && (main[i] < 8)
         i_data = main[i] + 1i32
         attempt += 1i32
 
@@ -117,7 +117,7 @@ function hexa_reset_secondary_kernel(main, secondary_1, secondary_2, cost, reset
         reset_check = 1i32 * ((attempt == reset_at_attempt) && (secondary_1[i] < reset_below_level) && (secondary_2[i] < reset_below_level))
         reset_check += 1i32 * (((20i32 - attempt) < (goal_level - secondary_1[i])) && ((20i32 - attempt) < (goal_level - secondary_2[i])))
         reset_check += 1i32 * ((attempt == 20i32) && (secondary_1[i] < goal_level) && (secondary_2[i] < goal_level))
-        reset_check *= 1i32 * (main[i] < 8)
+        # reset_check *= 1i32 * (main[i] < 8)
 
         if reset_check >= 1
             @inbounds reset[i] += 1i32
@@ -137,10 +137,10 @@ probability_main = [0.35, 0.35, 0.35, 0.2, 0.2, 0.2, 0.2, 0.15, 0.1, 0.05, -1]
 cost_data = [10, 10, 10, 20, 20, 20, 30, 30, 40, 50, 0]
 
 simulate_main = false
-goal_level = 10
+goal_level = 9
 
 attempt_magnitude = 10 # Does a total of roughly 10^n_magnitude attempts 
-n_threads = 1024 # Recommended to be a multiple of 32. Lower this value when you want lower n_magnitude. Maximum depends on GPU
+n_threads = 2^10 # Recommended to be a multiple of 32. Lower this value when you want lower n_magnitude. Maximum depends on GPU
 
 folder_results = "results"
 
@@ -172,16 +172,16 @@ for (i, reset_at_attempt) in enumerate(10:19)
     reset_below_level_minimum = maximum((0, goal_level - (20 - reset_at_attempt)))
     for reset_below_level in reset_below_level_minimum:(goal_level-1)
         println("-"^50)
-        if ~simulate_main
-            println("Goal for main = 8")
-        end
+        # if ~simulate_main
+        #     println("Goal for main = 8")
+        # end
         println("Goal for $(sub_folder) = ", goal_level)
         println("Reset at attempt = ", reset_at_attempt)
         println("Reset when $(sub_folder) below level = ", reset_below_level)
 
         # Approximate number of resets to tune number of attempts
         main_gpu, secondary_1_gpu, secondary_2_gpu, 
-        cost_gpu, reset_gpu = compute_hexa_reset(1024, probability_main, cost_data, 
+        cost_gpu, reset_gpu = compute_hexa_reset(2^10, probability_main, cost_data, 
                                                  goal_level, reset_at_attempt, reset_below_level,
                                                  n_threads, simulate_main);
 
@@ -192,7 +192,7 @@ for (i, reset_at_attempt) in enumerate(10:19)
         # Comment this for lower amount of trials
         if magnitude < 10
             magnitude = 10
-        elseif magnitude > 27
+        elseif magnitude > 27 # Change depending on available RAM on GPU
             magnitude = 27
         end
 
@@ -236,7 +236,7 @@ for (i, reset_at_attempt) in enumerate(10:19)
 end
 
 writedlm(save_path * "/summary_cost_mean_$(goal_level).txt", summary_cost_mean)
-writedlm(save_path * "summary_cost_50_$(goal_level).txt", summary_cost_50)
+writedlm(save_path * "/summary_cost_50_$(goal_level).txt", summary_cost_50)
 writedlm(save_path * "/summary_cost_90_$(goal_level).txt", summary_cost_90)
 writedlm(save_path * "/summary_cost_95_$(goal_level).txt", summary_cost_95)
 writedlm(save_path * "/summary_cost_99_$(goal_level).txt", summary_cost_99)
